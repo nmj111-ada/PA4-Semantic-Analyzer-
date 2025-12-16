@@ -1,0 +1,273 @@
+//////////////////////////////////////////////////////////////////////
+//good.cl - 正确程序测试
+//测试：基本类型、类继承、方法重写、SELF_TYPE、表达式
+//////////////////////////////////////////////////////////////////////
+class Main inherits IO {
+    main() : Object {
+        {
+            out_string("Testing basic types:\n");
+            
+            -- 整数运算
+            out_string("10 + 20 = ");
+            out_int(10 + 20);
+            out_string("\n");
+            
+            -- 布尔和条件
+            if true then
+                out_string("if works\n")
+            else
+                out_string("if broken\n")
+            fi;
+            
+            -- 字符串
+            let s : String <- "Hello"
+            in out_string(s.concat(" World!\n"));
+        }
+    };
+};
+
+-- 简单继承层次
+class Animal {
+    name : String;
+    
+    init(n : String) : SELF_TYPE {
+        {
+            name <- n;
+            self;
+        }
+    };
+    
+    speak() : Object {
+        (new IO).out_string("Animal sound\n")
+    };
+};
+
+class Dog inherits Animal {
+    speak() : Object {
+        (new IO).out_string("Woof!\n")
+    };
+};
+
+-- 测试静态分派
+class StaticDispatch {
+    test() : Int {
+        let a : Animal <- new Dog
+        in a@Animal.speak(); 0
+    };
+};
+
+//////////////////////////////////////////////////////////////////////
+//stack.cl - 栈数据结构
+//////////////////////////////////////////////////////////////////////
+
+class Stack {
+    elements : List;
+    
+    init() : SELF_TYPE {
+        {
+            elements <- new List.cons(nil, nil);
+            self;
+        }
+    };
+    
+    push(item : Object) : SELF_TYPE {
+        {
+            elements <- new List.cons(item, elements);
+            self;
+        }
+    };
+    
+    pop() : Object {
+        if elements.isNil() then
+            abort()
+        else
+            let top : Object <- elements.head(),
+                rest : List <- elements.tail()
+            in {
+                elements <- rest;
+                top;
+            }
+        fi
+    };
+    
+    -- SELF_TYPE返回类型
+    test_self() : SELF_TYPE {
+        self
+    };
+};
+
+class Main {
+    main() : Object {
+        let s : Stack <- (new Stack).init()
+        in {
+            s.push("first").push("second");
+            s.pop();  -- 应该弹出"second"
+            s.test_self().push("third");
+        }
+    };
+};
+
+//////////////////////////////////////////////////////////////////////
+//complex.cl - 复杂特性测试
+//////////////////////////////////////////////////////////////////////
+
+-- 1. 多继承层次
+class A {
+    x : Int <- 1;
+    get() : Int { x };
+};
+
+class B inherits A {
+    y : Int <- 2;
+    get() : Int { x + y };  -- 重写
+};
+
+-- 2. 方法重载（参数检查）
+class Overload {
+    method() : Int { 0 };
+    method(x : Int) : Int { x };
+    method(x : Int, y : Int) : Int { x + y };
+};
+
+-- 3. 循环和条件嵌套
+class Loop {
+    test() : Object {
+        let i : Int <- 0
+        in while i < 3 loop {
+            (new IO).out_string("i=");
+            (new IO).out_int(i);
+            (new IO).out_string("\n");
+            i <- i + 1;
+        } pool
+    };
+};
+
+-- 4. case表达式
+class Case {
+    test(obj : Object) : String {
+        case obj of
+            i : Int => "Int";
+            s : String => "String";
+            a : A => "Class A";
+            o : Object => "Object";
+        esac
+    };
+};
+
+-- 5. let表达式嵌套
+class LetNest {
+    calc() : Int {
+        let a : Int <- 1
+        in let b : Int <- a + 1
+           in let c : Int <- b + 1
+              in a + b + c
+    };
+};
+
+-- 6. 静态分派
+class Static {
+    test() : Int {
+        let b : B <- new B
+        in b@A.get()  -- 静态分派到A的get方法
+    };
+};
+
+-- 7. 块表达式
+class Block {
+    test() : Int {
+        {
+            (new IO).out_string("block\n");
+            1 + 2;
+            3 + 4;
+            5 + 6;
+        }
+    };
+};
+
+-- 主测试类
+class Main {
+    main() : Object {
+        {
+            (new Loop).test();
+            (new IO).out_string("Case test: ");
+            (new IO).out_string((new Case).test(5));
+            (new IO).out_string("\n");
+        }
+    };
+};
+
+//////////////////////////////////////////////////////////////////////
+//bad.cl - 经典语义错误测试
+//////////////////////////////////////////////////////////////////////
+
+-- 1. 重复定义类
+class Duplicate {}
+class Duplicate {}  -- 错误: 类名重复
+
+-- 2. 继承未定义的类
+class BadInherit inherits UndefinedClass {}
+
+-- 3. 继承基本类型
+class BadInheritInt inherits Int {}
+
+-- 4. 继承循环
+class CycleA inherits CycleB {}
+class CycleB inherits CycleA {}
+
+-- 5. 未定义的属性类型
+class BadAttr {
+    x : UndefinedType;
+};
+
+-- 6. 类型不匹配赋值
+class TypeMismatch {
+    x : Int;
+    test() : Object { x <- "string" };  -- Int不能赋值为String
+};
+
+-- 7. 方法参数数量错误
+class BadArgCount {
+    method(x : Int, y : Int) : Int { x + y };
+    test() : Int { method(1) };  -- 缺少一个参数
+};
+
+-- 8. 静态分派类型错误
+class StaticError {
+    test() : Int {
+        let obj : Object <- new Object
+        in obj@String.length()  -- Object不是String的子类
+    };
+};
+
+-- 9. if条件非Bool
+class BadIf {
+    test() : Int { if 123 then 1 else 0 fi };  -- 123不是Bool
+};
+
+-- 10. let类型不匹配
+class BadLet {
+    test() : Int { let x : Int <- "string" in x };  -- 初始化类型不匹配
+};
+
+-- 11. 算术类型错误
+class BadArith {
+    test() : Int { "string" + 1 };  -- String不能用于加法
+};
+
+-- 12. 比较类型错误
+class BadComp {
+    test() : Bool { 123 = "string" };  -- Int和String不能比较
+};
+
+-- 13. 方法重写错误
+class Base { method(x : Int) : Int { x }; };
+class BadOverride inherits Base { 
+    method(x : String) : Int { 0 };  -- 参数类型不匹配
+};
+
+-- Main类
+class Main {
+    main() : Object {
+        (new IO).out_string("This program should report many errors\n")
+    };
+};
